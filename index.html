@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c3323">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>SkillUp · Escáner</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800;900&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+<script src="jsQR.js"></script>
+<style>
+  :root {
+    --forest:#1c3323; --forest-2:#27452f; --brand:#4f7a43; --leaf:#89b568; --olive:#a2a963; --cream:#f7f3e8; --sun:#e0ad38;
+    --ok:#2f7d45; --ok-soft:#e1f0df; --warn:#a96d12; --warn-soft:#fbefd6; --bad:#b93b38; --bad-soft:#fbe4e1;
+    --f-display:'Nunito', 'Segoe UI', system-ui, sans-serif; --f-body:'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; background:#0d1a11; color:#f3f1e8; font:16px/1.4 var(--f-body); overscroll-behavior:none; }
+  button { font:inherit; cursor:pointer; border:0; }
+  .app { position:fixed; inset:0; display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:12px; padding:calc(10px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); background:var(--forest); z-index:3; }
+  header img { width:38px; height:38px; border-radius:50%; background:var(--cream); }
+  header .t { flex:1; min-width:0; }
+  header b { display:block; font:900 16px var(--f-display); letter-spacing:.01em; }
+  header small { display:block; color:#b9c7b0; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .count { text-align:center; background:rgba(255,255,255,.08); border-radius:14px; padding:4px 12px; min-width:64px; }
+  .count b { font:900 22px/1 var(--f-display); color:var(--leaf); }
+  .count small { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:#b9c7b0; }
+  [hidden] { display:none !important; }
+  .stage { position:relative; flex:1; overflow:hidden; background:#000; }
+  #reader { position:absolute !important; inset:0 !important; width:auto !important; height:auto !important; border:0 !important; padding:0 !important; }
+  #reader video { position:absolute; inset:0; width:100% !important; height:100% !important; object-fit:cover; }
+  .frame { position:absolute; left:50%; top:46%; width:min(68vw, 300px); aspect-ratio:1; transform:translate(-50%, -50%); pointer-events:none; }
+  .frame::before { content:''; position:absolute; inset:0; border-radius:28px; box-shadow:0 0 0 100vmax rgba(10,20,13,.45); }
+  .frame i { position:absolute; width:46px; height:46px; border:5px solid var(--leaf); }
+  .frame i:nth-child(1) { left:0; top:0; border-right:0; border-bottom:0; border-radius:26px 0 0 0; }
+  .frame i:nth-child(2) { right:0; top:0; border-left:0; border-bottom:0; border-radius:0 26px 0 0; }
+  .frame i:nth-child(3) { left:0; bottom:0; border-right:0; border-top:0; border-radius:0 0 0 26px; }
+  .frame i:nth-child(4) { right:0; bottom:0; border-left:0; border-top:0; border-radius:0 0 26px 0; }
+  .frame .ln { position:absolute; left:10%; right:10%; height:3px; border-radius:3px; background:var(--leaf); box-shadow:0 0 14px var(--leaf); animation:scan 2.2s ease-in-out infinite; }
+  @keyframes scan { 0%, 100% { top:12%; } 50% { top:86%; } }
+  .stage.busy .frame i { border-color:var(--sun); }
+  .stage.idle .frame { display:none; }
+  .hintTop { position:absolute; left:0; right:0; top:14px; text-align:center; font-weight:700; text-shadow:0 1px 6px rgba(0,0,0,.6); pointer-events:none; }
+  .start { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:28px; text-align:center; background:radial-gradient(circle at 50% 35%, #27452f, #0d1a11 70%); }
+  .start h1 { margin:0; font:900 28px/1.1 var(--f-display); }
+  .start p { margin:0; color:#c9d5c0; max-width:340px; }
+  .big { background:var(--leaf); color:var(--forest); font:900 18px var(--f-display); padding:16px 26px; border-radius:18px; box-shadow:0 12px 30px -10px rgba(137,181,104,.7); display:inline-flex; align-items:center; gap:10px; }
+  .big:active { transform:scale(.98); }
+  .ghost { background:rgba(255,255,255,.1); color:#f3f1e8; font-weight:700; padding:12px 18px; border-radius:14px; }
+  .result { position:absolute; left:max(12px, env(safe-area-inset-left)); right:max(12px, env(safe-area-inset-right)); bottom:12px; border-radius:22px; padding:16px 18px; display:flex; gap:14px; align-items:center; box-shadow:0 18px 40px -14px rgba(0,0,0,.6); transform:translateY(140%); transition:transform .25s ease; z-index:2; }
+  .result.show { transform:none; }
+  .result .ic { width:52px; height:52px; border-radius:50%; flex:none; display:grid; place-items:center; color:#fff; font:900 26px var(--f-display); }
+  .result b { display:block; font:900 21px/1.15 var(--f-display); }
+  .result span { display:block; font-size:15px; opacity:.9; }
+  .result.ok { background:var(--ok-soft); color:#163d22; } .result.ok .ic { background:var(--ok); }
+  .result.warn { background:var(--warn-soft); color:#5a3a06; } .result.warn .ic { background:var(--warn); }
+  .result.bad { background:var(--bad-soft); color:#5c1715; } .result.bad .ic { background:var(--bad); }
+  .result.wait { background:#f3f1e8; color:var(--forest); } .result.wait .ic { background:var(--olive); }
+  footer { background:var(--forest); padding:10px max(14px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); display:flex; flex-direction:column; gap:8px; z-index:3; }
+  .recent { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; min-height:34px; }
+  .recent::-webkit-scrollbar { display:none; }
+  .chip { flex:none; display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:99px; font-size:13px; font-weight:700; background:rgba(255,255,255,.08); }
+  .chip::before { content:''; width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .chip.ok { color:#9fd08a; } .chip.warn { color:#f1c66e; } .chip.bad { color:#f19a96; }
+  .empty { color:#93a18a; font-size:13px; align-self:center; }
+  .btns { display:flex; gap:8px; }
+  .btns button { flex:1; }
+  .err { color:#f19a96; }
+  @media (prefers-reduced-motion: reduce) { .frame .ln { animation:none; top:50%; } .result { transition:none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header><img src="logo.png" alt=""><div class="t"><b>Escáner SkillUp</b><small id="ses">Cargando sesión…</small></div><div class="count"><b id="cnt">–</b><small>asisten</small></div></header>
+  <div class="stage idle" id="stage">
+    <div id="reader"></div>
+    <div class="frame"><i></i><i></i><i></i><i></i><div class="ln"></div></div>
+    <div class="hintTop" id="hint" hidden>Centra el QR dentro del recuadro</div>
+    <div class="start" id="start">
+      <img src="logo.png" alt="" width="84" height="84" style="border-radius:50%;background:#f7f3e8">
+      <h1>Asistencia con cámara en vivo</h1>
+      <p id="startTxt">Apunta al QR de cada miembro. Se registra solo, sin tocar nada.</p>
+      <button class="big" id="go">Abrir cámara</button>
+    </div>
+    <div class="result" id="res"><div class="ic" id="resIc">✓</div><div><b id="resT"></b><span id="resS"></span></div></div>
+  </div>
+  <footer>
+    <div class="recent" id="recent"><span class="empty">Los últimos registros aparecerán aquí.</span></div>
+    <div class="btns"><button class="ghost" id="flip" hidden>Cambiar cámara</button><button class="ghost" id="back">Volver a la app</button></div>
+  </footer>
+</div>
+<script>
+(function () {
+  'use strict';
+  var DEFAULT_API = 'https://script.google.com/macros/s/AKfycbwSMOuOmZbCh4hud4FAqjlWhl_9Hw0_dnJ6MVbH7UgknrXivmTQRHo6LvMJc4VUsUm0/exec';
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Datos que manda la app en el #hash: token de sesión, id de la sesión y nombre. Se guardan y se borran de la dirección.
+  var cfg = {};
+  try { cfg = JSON.parse(sessionStorage.getItem('su_scan') || '{}'); } catch (e) {}
+  if (location.hash.length > 1) {
+    var h = new URLSearchParams(location.hash.slice(1));
+    cfg = { t: h.get('t'), s: h.get('s'), n: h.get('n') || '', a: h.get('a') || DEFAULT_API };
+    try { sessionStorage.setItem('su_scan', JSON.stringify(cfg)); } catch (e) {}
+    history.replaceState(null, '', location.pathname);
+  }
+  var API = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(cfg.a || '') ? cfg.a : DEFAULT_API;
+
+  function back() { try { window.close(); } catch (e) {} setTimeout(function () { history.length > 1 ? history.back() : null; }, 150); }
+  $('back').onclick = back;
+
+  if (!cfg.t || !cfg.s) {
+    $('ses').textContent = 'Sin sesión';
+    $('startTxt').innerHTML = '<span class="err">Abre el escáner desde la app de SkillUp, dentro de la sesión del día (botón «Escanear con cámara»).</span>';
+    $('go').hidden = true;
+    return;
+  }
+  $('ses').textContent = cfg.n || 'Sesión';
+
+  function post(action, p) {
+    return fetch(API, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: cfg.t, action: action, p: p }) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j.ok) throw new Error(j.e || 'Error'); return j.v; });
+  }
+  var MSG = {
+    ok: ['ok', '✓', 'Registrado'], first_session: ['warn', '★', 'First session'], ya_registrado: ['warn', '=', 'Ya estaba registrado'],
+    sin_creditos: ['bad', '!', 'Sin créditos'], paquete_vencido: ['bad', '!', 'Paquete vencido'], qr_invalido: ['bad', '?', 'QR no válido'], sesion_no_valida: ['bad', '!', 'La sesión no está abierta'],
+  };
+  var hideT = null;
+  function show(cls, ic, title, sub, ms) {
+    var r = $('res'); r.className = 'result show ' + cls; $('resIc').textContent = ic; $('resT').textContent = title; $('resS').textContent = sub || '';
+    clearTimeout(hideT); if (ms) hideT = setTimeout(function () { r.classList.remove('show'); }, ms);
+  }
+  var actx = null;
+  function beep(ok) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain(); o.connect(g); g.connect(actx.destination);
+      o.frequency.value = ok ? 880 : 220; g.gain.value = 0.08; o.start(); o.stop(actx.currentTime + (ok ? 0.12 : 0.3));
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate(ok ? 70 : [90, 60, 90]); } catch (e) {}
+  }
+  var recent = [];
+  function addRecent(cls, name) {
+    recent.unshift({ cls: cls, name: name }); recent = recent.slice(0, 12);
+    $('recent').innerHTML = recent.map(function (x) { return '<span class="chip ' + x.cls + '">' + x.name.replace(/[&<>"']/g, '') + '</span>'; }).join('');
+  }
+
+  post('scanInfo', { sesion_id: cfg.s }).then(function (v) {
+    $('ses').textContent = (cfg.n || (v.fecha + ' ' + v.hora)) + (v.sede ? ' · ' + v.sede : '');
+    $('cnt').textContent = v.asistentes;
+    if (v.estado === 'cerrada' || v.estado === 'cancelada') show('bad', '!', 'La sesión está ' + v.estado, 'Solo el equipo puede registrar en sesiones cerradas.', 0);
+  }).catch(function (e) {
+    if (/SESION_EXPIRADA/.test(e.message)) { $('startTxt').innerHTML = '<span class="err">Tu sesión expiró. Vuelve a la app, ingresa y abre el escáner otra vez.</span>'; $('go').hidden = true; }
+    else $('ses').textContent = 'Sin conexión con SkillUp';
+  });
+
+  var busy = false, lastTxt = '', lastAt = 0, cams = [], camIdx = 0;
+  function onScan(txt) {
+    var now = Date.now();
+    if (busy || (txt === lastTxt && now - lastAt < 4000)) return;
+    busy = true; lastTxt = txt; lastAt = now;
+    $('stage').classList.add('busy');
+    show('wait', '…', 'Registrando…', '', 0);
+    post('escanear', { sesion_id: cfg.s, qr: txt }).then(function (r) {
+      var m = MSG[r.codigo] || ['bad', '!', r.codigo];
+      var sub = r.nombre ? r.nombre + (r.restantes != null ? ' · le quedan ' + r.restantes + ' créditos' : '') : '';
+      show(m[0], m[1], m[2], sub, 3200); beep(m[0] === 'ok');
+      if (r.asistentes != null) $('cnt').textContent = r.asistentes;
+      addRecent(m[0], r.nombre || m[2]);
+    }).catch(function (e) {
+      if (/SESION_EXPIRADA/.test(e.message)) show('bad', '!', 'Tu sesión expiró', 'Vuelve a la app e ingresa de nuevo.', 0);
+      else show('bad', '!', 'No se pudo registrar', 'Revisa tu conexión. ' + e.message, 4000);
+      beep(false);
+    }).then(function () { busy = false; $('stage').classList.remove('busy'); });
+  }
+
+  // Lector propio: cámara en vivo con getUserMedia; decodifica con el detector nativo (Android/Chrome) o con jsQR (iPhone y el resto).
+  var stream = null, video = null, raf = 0, decoding = false, lastFrame = 0, running = false;
+  var cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  var detector = null;
+  try { if ('BarcodeDetector' in window) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
+  function stopCam() {
+    running = false; cancelAnimationFrame(raf);
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    stream = null;
+  }
+  function decode() {
+    var vw = video.videoWidth, vh = video.videoHeight;
+    if (!vw || !vh) return Promise.resolve(null);
+    if (detector) return detector.detect(video).then(function (r) { return r && r[0] ? r[0].rawValue : null; }, function () { detector = null; return null; });
+    // Zona central (donde está el marco), reducida para que sea rápido incluso en celulares modestos.
+    var side = Math.min(vw, vh) * 0.9, sx = (vw - side) / 2, sy = (vh - side) / 2, out = Math.min(640, Math.round(side));
+    cv.width = out; cv.height = out;
+    cx.drawImage(video, sx, sy, side, side, 0, 0, out, out);
+    var img = cx.getImageData(0, 0, out, out);
+    var q = window.jsQR ? jsQR(img.data, out, out, { inversionAttempts: 'attemptBoth' }) : null;
+    return Promise.resolve(q && q.data ? q.data : null);
+  }
+  function loop(t) {
+    if (!running) return;
+    raf = requestAnimationFrame(loop);
+    if (decoding || busy || t - lastFrame < 80 || !video || video.readyState < 2) return;
+    lastFrame = t; decoding = true;
+    decode().then(function (txt) { decoding = false; if (txt) onScan(String(txt).trim()); }, function () { decoding = false; });
+  }
+  function startCam(id) {
+    stopCam();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('NoMedia'));
+    var v = id ? { deviceId: { exact: id }, width: { ideal: 1280 }, height: { ideal: 720 } } : { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } };
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: v }).then(function (st) {
+      stream = st;
+      if (!video) { video = document.createElement('video'); video.setAttribute('playsinline', ''); video.setAttribute('muted', ''); video.muted = true; video.autoplay = true; $('reader').appendChild(video); }
+      video.srcObject = st;
+      var tr = st.getVideoTracks()[0], set = tr && tr.getSettings ? tr.getSettings() : {};
+      video.style.transform = set.facingMode === 'user' ? 'scaleX(-1)' : '';
+      return video.play();
+    }).then(function () { running = true; raf = requestAnimationFrame(loop); });
+  }
+  function listCams() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then(function (d) {
+      cams = d.filter(function (x) { return x.kind === 'videoinput'; });
+      var cur = stream && stream.getVideoTracks()[0] && stream.getVideoTracks()[0].getSettings().deviceId;
+      camIdx = Math.max(0, cams.findIndex(function (c) { return c.deviceId === cur; }));
+      if (cams.length > 1) $('flip').hidden = false;
+    }).catch(function () {});
+  }
+  $('go').onclick = function () {
+    beep(true);
+    $('go').disabled = true; $('go').textContent = 'Abriendo cámara…';
+    startCam().then(function () {
+      $('start').hidden = true; $('stage').classList.remove('idle'); $('hint').hidden = false;
+      listCams();
+    }).catch(function (e) {
+      $('go').disabled = false; $('go').textContent = 'Intentar de nuevo';
+      var n = (e && e.name) || '', m = String((e && e.message) || e);
+      $('startTxt').innerHTML = '<span class="err">' + (/NotAllowed|Permission|Security/i.test(n + m)
+        ? 'La cámara está bloqueada. Toca el candado (o «aA» en iPhone) junto a la dirección, permite la cámara y vuelve a intentar.'
+        : /NotFound|Overconstrained|DevicesNotFound/i.test(n + m) ? 'No encontramos una cámara en este equipo.'
+        : /NotReadable|TrackStart/i.test(n + m) ? 'Otra aplicación está usando la cámara. Ciérrala y vuelve a intentar.'
+        : /NoMedia/.test(m) ? 'Este navegador no permite usar la cámara. Abre este enlace en Chrome o Safari.'
+        : 'No se pudo abrir la cámara: ' + m) + '</span>';
+    });
+  };
+  $('flip').onclick = function () {
+    if (cams.length < 2) return;
+    camIdx = (camIdx + 1) % cams.length;
+    startCam(cams[camIdx].deviceId).catch(function () { startCam(); });
+  };
+  // Al salir de la pestaña se apaga la cámara (ahorra batería); al volver se reanuda sola.
+  var camWanted = false;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { camWanted = running; if (running) stopCam(); }
+    else if (camWanted) { camWanted = false; startCam(cams[camIdx] && cams[camIdx].deviceId).catch(function () { startCam(); }); }
+  });
+})();
+</script>
+</body>
+</html>
